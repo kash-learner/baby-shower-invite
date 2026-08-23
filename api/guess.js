@@ -27,15 +27,18 @@ async function getCount(name) {
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
 
+  var voteError = null;
+  var voteStatus = null;
   const vote = req.query && req.query.vote;
   const counterName = vote && COUNTER_NAMES[vote];
   if (counterName) {
     try {
-      await fetch(COUNTER_BASE + counterName + "/up", {
+      const upRes = await fetch(COUNTER_BASE + counterName + "/up", {
         headers: { Authorization: "Bearer " + COUNTER_TOKEN },
       });
+      voteStatus = upRes.status;
     } catch (e) {
-      // Ignore -- we still return the current counts below.
+      voteError = String((e && e.message) || e);
     }
   }
 
@@ -44,5 +47,14 @@ module.exports = async (req, res) => {
     getCount("jr-ashwin"),
   ]);
 
-  res.status(200).json({ swetha, ashwin });
+  const body = { swetha, ashwin };
+  if (req.query && req.query.debug) {
+    body.debug = {
+      hasFetch: typeof fetch,
+      nodeVersion: process.version,
+      voteStatus: voteStatus,
+      voteError: voteError,
+    };
+  }
+  res.status(200).json(body);
 };
